@@ -1,7 +1,7 @@
 from machine import Pin, ADC
 from time import sleep
 
-pot = ADC(Pin(27))
+pot = ADC(Pin(33))
 pot.atten(ADC.ATTN_11DB)
 
 while True:

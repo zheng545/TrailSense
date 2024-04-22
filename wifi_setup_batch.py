@@ -3,8 +3,8 @@ import urequests as requests
 import json
 
 # Wi-Fi credentials
-ssid = 'Nola'
-password = '12345678'
+ssid = 'MyiPhone12'
+password = 'abcdefgh'
 
 # Google Apps Script execution URL
 url = 'https://script.google.com/macros/s/AKfycbw3KMFPTUyAL28x0v8iv6WxMvgNxNmeDodNajs5dTMATo9QzHdzfp2rpPKkoUQniXwR/exec'
@@ -67,7 +67,7 @@ def collect_and_send_data():
 
 def main():
     connect_wifi()
-    sync_time()
+    #sync_time()
     collect_and_send_data()
 
 if __name__ == "__main__":

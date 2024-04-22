@@ -1,7 +1,6 @@
 """XGLCD Font Utility."""
 from math import ceil, floor
-from Arcadepix9x11 import Arcadepix9x11
-from Deloce18x24 import Deloce18x24
+#from Deloce18x24 import Deloce18x24
 
 
 class XglcdFont(object):
