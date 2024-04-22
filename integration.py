@@ -1,7 +1,7 @@
 # LCD Display
 from xglcd_font import XglcdFont
-from Deloce18x24 import Deloce18x24
-from ili9341 import Display, color565
+from FixedFont5x8 import FixedFont5x8
+from myili9341 import Display, color565
 # Sensors
 import mpu6050
 from bme680 import *
@@ -11,7 +11,7 @@ import network
 import urequests as requests
 import json
 
-import time
+from time import sleep, sleep_ms, ticks_ms, ticks_diff, time
 from math import radians, cos, sin, atan2, degrees
 from machine import Timer, Pin, SoftI2C, UART, SPI, ADC
 
@@ -48,7 +48,7 @@ def convertToDegree(RawDegrees):
 
 def getGPS(gpsModule):
     global GPSData
-    timeout = time.time() + 8 
+    timeout = time() + 8 
     while True:
         gpsModule.readline()
         buff = str(gpsModule.readline())
@@ -63,9 +63,9 @@ def getGPS(gpsModule):
                 GPSData["Satellites"] = parts[7]
                 GPSData["GPStime"] = parts[1][0:2] + ":" + parts[1][2:4] + ":" + parts[1][4:6]
                 break              
-        if (time.time() > timeout):
+        if (time() > timeout):
             break
-        time.sleep_ms(500)
+        sleep_ms(500)
 
 def timer_interruption_handler(timer):
     global i2c_input_sensor
@@ -82,91 +82,68 @@ def show_data(display, data1):
     start_x = 0
     start_y = 320
     display.clear()
-    espresso_dolce = XglcdFont(Deloce18x24, 18, 24)
+    espresso_dolce = XglcdFont(FixedFont5x8, 5, 8)
     for key, value in data1.items():
         display.draw_text(start_x, start_y, f'{key}: {value}', espresso_dolce, color565(255, 255, 255), landscape=True)
         start_x += 40
-        time.sleep(2)  # Fetch data every 2 seconds
+        sleep(1)  # Fetch data every 2 seconds
     display.clear()
 
 # Button press handlers
 def left_button_interrupt_handler(pin):
     global output_sensor
     global last_left_press_time
-    selectedData = {}
-    left_press_time = time.ticks_ms()
-    if(time.ticks_diff(left_press_time, last_left_press_time) > debounce_time):
+    left_press_time = ticks_ms()
+    if(ticks_diff(left_press_time, last_left_press_time) > debounce_time):
         last_left_press_time = left_press_time
         output_sensor = (output_sensor + 5) % 6
+        print(output_sensor)
         if(output_sensor == 0):
-            selectedData["Selected"] = "Gyro"
+            displayData = MPUData
         elif(output_sensor == 1):
-            selectedData["Selected"] = "Environment"
+            displayData = BMEData
         elif(output_sensor == 2):
-            selectedData["Selected"] = "Brightness"
+            displayData = VCNLData
         elif(output_sensor == 3):
-            selectedData["Selected"] = "GPS"
+            displayData = GPSData
         elif(output_sensor == 4):
-            selectedData["Selected"] = "Pressure"
+            displayData = PressureData
         else:
-            selectedData["Selected"] = "Direction"
-        show_data(display, selectedData)
+            displayData = DirectionData
+        #show_data(display, displayData)
 
 def right_button_interrupt_handler(pin):
     global output_sensor
     global last_right_press_time
-    selectedData = {}
-    right_press_time = time.ticks_ms()
-    if(time.ticks_diff(right_press_time, last_right_press_time) > debounce_time):
+    right_press_time = ticks_ms()
+    if(ticks_diff(right_press_time, last_right_press_time) > debounce_time):
         last_right_press_time = right_press_time
         output_sensor = (output_sensor + 1) % 6
+        print(output_sensor)
         if(output_sensor == 0):
-            selectedData["Selected"] = "Gyro"
+            displayData = MPUData
         elif(output_sensor == 1):
-            selectedData["Selected"] = "Environment"
+            displayData = BMEData
         elif(output_sensor == 2):
-            selectedData["Selected"] = "Brightness"
+            displayData = VCNLData
         elif(output_sensor == 3):
-            selectedData["Selected"] = "GPS"
+            displayData = GPSData
         elif(output_sensor == 4):
-            selectedData["Selected"] = "Pressure"
+            displayData = PressureData
         else:
-            selectedData["Selected"] = "Direction"
-        show_data(display, selectedData)
+            displayData = DirectionData
+        #show_data(display, displayData)
 
 def center_button_interrupt_handler(pin):
     global press_time
     if(center_button.value() == 0):
-        press_time = time.ticks_ms()
+        press_time = ticks_ms()
     else:
-        release_time = time.ticks_ms()
-        if(time.ticks_diff(release_time, press_time) > 1000):
+        release_time = ticks_ms()
+        if(ticks_diff(release_time, press_time) > 1000):
             print("SOS!!!")
         else:
-            if(output_sensor == 0):
-                displayData = MPUData
-            elif(output_sensor == 1):
-                displayData = BMEData
-            elif(output_sensor == 2):
-                displayData = VCNLData
-            elif(output_sensor == 3):
-                displayData = GPSData
-            elif(output_sensor == 4):
-                displayData = PressureData
-            else:
-                displayData = DirectionData
-            show_data(display, displayData)
-
-# Put data into one list
-def changeformat():
-    global CombinedData
-    CombinedData = []
-    CombinedData.append(MPUData)
-    CombinedData.append(BMEData)
-    CombinedData.append(VCNLData)
-    CombinedData.append(GPSData)
-    CombinedData.append(PressureData)
-    CombinedData.append(DirectionData)
+            collect_and_send_data()
 
 # GPS and location calculation
 def calculate_initial_compass_bearing(pointA, pointB):
@@ -237,6 +214,7 @@ def send_data(json_data):
 
 # Collect and send batch data
 def collect_and_send_data():
+    # Hard code terrain data into data_batch
     data_batch = [
         {
             "Timestamp": "2024-03-01T12:00:00Z",
@@ -267,13 +245,13 @@ def collect_and_send_data():
     ]
     json_data = json.dumps(data_batch)
     send_data(json_data)
-    
+
 # Sensor selection
 i2c_input_sensor = 0
 output_sensor = 0
 # Buttons
 press_time = 0
-debounce_time = 150
+debounce_time = 300
 last_left_press_time = 0
 last_right_press_time = 0
 # Sensor data
@@ -304,34 +282,65 @@ center_button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=center_butto
 # GPS definition
 gpsModule = UART(2, baudrate=9600, rx=16, tx=17)
 # Pressure Sensor
-pressure_sensor = ADC(Pin(27))
+pressure_sensor = ADC(Pin(33))
 pressure_sensor.atten(ADC.ATTN_11DB)
 # Display definition
 spi = SPI(2, baudrate=40000000, sck=Pin(18), mosi=Pin(23))
 display = Display(spi, dc=Pin(2), cs=Pin(15), rst=Pin(4))
 # Distance calculation
 planned_points = [
-    (51.508583, -0.167461),  # Example point 1
-    (51.509000, -0.167500)  # Example point 2
+    #(40.4272, -0.167461),  # Example point 1
+    #(51.509000, -0.167500)  # Example point 2
+    (40.4272807, -86.9121142),
+    (40.4272634, -86.9120452),
+    (40.427258, -86.9119838),
+    (40.4272879, -86.9119402),
+    (40.4273461, -86.9119359),
+    (40.4275222, -86.9119362),
+    (40.4276271, -86.9119362),
+    (40.4276883, -86.9119369),
+    (40.427783, -86.9119319),
+    (40.4278108, -86.9119369),
+    (40.4278621, -86.9119892),
+    (40.4278586, -86.9120556),
+    (40.4278346, -86.9121303)
     # Add more points as necessary
 ]
 current_location = (51.4680, 0.4551)
+
 # Wifi info
 # Wi-Fi credentials
-ssid = 'Nola'
-password = '12345678'
+ssid = 'MyiPhone12'
+password = 'abcdefgh'
 # Google Apps Script execution URL
 url = 'https://script.google.com/macros/s/AKfycbw3KMFPTUyAL28x0v8iv6WxMvgNxNmeDodNajs5dTMATo9QzHdzfp2rpPKkoUQniXwR/exec'
 
+connect_wifi()
 while True:
-    getGPS(gpsModule)
     PressureData["PressureData"] = pressure_sensor.read()
+    # Add terrain determination if statements right here
+    #
+    #
+    #
+    #
+    #########
+    getGPS(gpsModule)
     closest_point = find_closest_point(current_location)
     bearing_to_destination = calculate_initial_compass_bearing(current_location, closest_point)
     geo_direction = get_geo_direction(bearing_to_destination)
     DirectionData["Destination"] = str(closest_point)
     DirectionData["Direction"] = geo_direction + " " + str(bearing_to_destination)
-    #print(output_sensor)
-
+    if(output_sensor == 0):
+        displayData = MPUData
+    elif(output_sensor == 1):
+        displayData = BMEData
+    elif(output_sensor == 2):
+        displayData = VCNLData
+    elif(output_sensor == 3):
+        displayData = GPSData
+    elif(output_sensor == 4):
+        displayData = PressureData
+    else:
+        displayData = DirectionData
+    show_data(display, displayData)
 #connect_wifi()
-#collect_and_send_data()
