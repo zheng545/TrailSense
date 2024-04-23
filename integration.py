@@ -84,10 +84,10 @@ def show_data(display, data1):
     display.clear()
     espresso_dolce = XglcdFont(FixedFont5x8, 5, 8)
     for key, value in data1.items():
-        display.draw_text(start_x, start_y, f'{key}: {value}', espresso_dolce, color565(255, 255, 255), landscape=True)
+        display.draw_text(start_x, start_y, f'{key}: {value}', espresso_dolce, color565(255, 255, 255), landscape=True, rotate_180=True)
         start_x += 40
         sleep(1)  # Fetch data every 2 seconds
-    display.clear()
+    #display.clear()
 
 # Button press handlers
 def left_button_interrupt_handler(pin):
@@ -306,7 +306,7 @@ planned_points = [
     (40.4278346, -86.9121303)
     # Add more points as necessary
 ]
-current_location = (51.4680, 0.4551)
+current_location = (40.4273, -86.9120)
 
 # Wifi info
 # Wi-Fi credentials
