@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>TrailSense: Hiking Data Display</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+        
+        <style>
+          #map { height: 600px; width: 100%; }
+          .info { padding: 6px 8px; }
+          .info h4 { margin: 0 0 5px; color: #777; }
+          
+          /* Legend CSS */
+          .legend {
+            line-height: 18px;
+            color: #555;
+          }
+          .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+          }
+        </style>
+      </head>
+<body>
+    <div id="map"></div>
+    <div class="info">
+        <h4>Marker Data:</h4>
+        <p id="markerData">Click a marker to show Elevation, Temperature, Humidity, Air Quality, and Terrain Type.</p>
+    </div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([40.4272807,-86.9121142], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 25
+        }).addTo(map);
+
+        const sheetId = '1nQLY54gwARcaa7jIEY9eUS3l-J-Vc9yPh9XFr9qgOzk';
+        const apiKey = 'AIzaSyA1w2waBadLsoa2__BJYfpHRDPWgBsxx_I'; 
+        const baseUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A2:L?key=${apiKey}`;
+        
+        function fetchMarkerData() {
+            fetch(baseUrl)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Fetched Data:", data.values);
+                    const rows = data.values;
+                    
+                    let plannedRoute = [];
+                    let actualRoute = [];
+                    let markerData = []; 
+
+                    rows.forEach(row => {
+                        const plannedLat = parseFloat(row[1]);
+                        const plannedLng = parseFloat(row[2]);
+                        const actualLat = parseFloat(row[3]);
+                        const actualLng = parseFloat(row[4]);
+                        
+                        plannedRoute.push([plannedLat, plannedLng]);
+                        actualRoute.push([actualLat, actualLng]);
+                    
+                        const speed = row[5];
+                        const altitude = row[6];
+                        const humidity = row[7];
+                        const temperature = row[8];
+                        const pressure = row[9];
+                        const gas = row[10];
+                        const terrain = row[11];
+                        const markerPopupContent = `Speed: ${speed}, Elevation: ${altitude}, Humidity: ${humidity} %, Temperature: ${temperature} °C, Pressure: ${pressure} hPa, VOC Gas: ${gas} KOhms, Terrain Type: ${terrain}`;
+                        markerData.push({ position: [actualLat, actualLng], data: markerPopupContent });
+                    });
+
+                    // Plot the planned route
+                    addRoute(plannedRoute, 'blue');
+                    
+                    // Plot the actual route
+                    addRoute(actualRoute, 'red');
+
+                    // Add markers to the map for each actual data point
+                    addMarkers(markerData);
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+        document.addEventListener('DOMContentLoaded', fetchMarkerData);
+
+        // Functions to add routes and markers
+        function addRoute(coordinates, color) {
+            L.polyline(coordinates, {color: color}).addTo(map);
+        }
+
+        function addMarkers(markers) {
+            markers.forEach(function(marker) {
+                var m = L.marker(marker.position).addTo(map);
+                m.bindPopup(marker.data);
+            });
+        }
+
+        // Legend
+        var legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'info legend'),
+                grades = ['planned route', 'actual route'], 
+                labels = [],
+                colors = ['#0000FF', '#FF0000']; 
+
+            for (var i = 0; i < grades.length; i++) {
+                div.innerHTML +=
+                    '<i style="background:' + colors[i] + '"></i> ' +
+                    '<span>' + grades[i] + '</span><br>';
+            }
+
+            return div;
+        };
+        legend.addTo(map);
+    </script>
+</body>
+</html>

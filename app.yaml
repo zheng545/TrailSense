@@ -1,0 +1,12 @@
+runtime: python39
+
+handlers:
+- url: /(.*\.(html|css|js|png|jpg|jpeg|gif|ico))
+  static_files: static/\1
+  upload: static/(.*\.(html|css|js|png|jpg|jpeg|gif|ico))
+  secure: always
+
+- url: /.*
+  static_files: static/index.html
+  upload: static/index.html
+  secure: always
